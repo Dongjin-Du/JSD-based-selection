@@ -14,7 +14,7 @@ import matplotlib.pyplot as plt
 import matplotlib.figure
 
 
-__all__ = ["plot_jsd", "plot_rul_families"]
+__all__ = ["plot_jsd", "plot_rul_families", "plot_selection"]
 
 
 def plot_jsd(
@@ -172,6 +172,107 @@ def plot_rul_families(
     if save_path:
         fig.savefig(save_path, dpi=150, bbox_inches="tight")
 
+    return fig
+
+
+def plot_selection(
+    selection_result,
+    *,
+    title: str | None = None,
+    max_candidates: int = 10,
+    ax: Optional[plt.Axes] = None,
+    save_path: Optional[str] = None,
+) -> plt.Figure:
+    """Visualise a :class:`~jsd_consistency.selection.SelectionResult`.
+
+    Draws two panels side by side:
+
+    * **Left** — KDE of JSD distributions for each candidate (like
+      :func:`plot_jsd` but built from a SelectionResult directly).
+    * **Right** — bar chart of scores (mean or max JSD) so the ranking
+      is immediately readable.
+
+    Parameters
+    ----------
+    selection_result : SelectionResult
+        Output of :func:`~jsd_consistency.selection.select_model`.
+    title : str, optional
+        Overall figure title.  Defaults to
+        ``"Model Selection  (criterion: <criterion>)"``.
+    max_candidates : int, default 10
+        Cap on how many candidates to display (top-ranked first).
+    ax : ignored
+        Kept for API consistency; this function always creates its own figure.
+    save_path : str, optional
+
+    Returns
+    -------
+    matplotlib.figure.Figure
+    """
+    sr = selection_result
+    shown = sr.candidates[:max_candidates]
+    n     = len(shown)
+    cmap  = plt.cm.tab10(np.linspace(0, 0.85, max(n, 1)))
+
+    fig, (ax_kde, ax_bar) = plt.subplots(1, 2, figsize=(13, 4))
+
+    # ── Left: KDE of JSD distributions ──────────────────────────────
+    for cand, color in zip(shown, cmap):
+        cr  = cand.consistency_result
+        jsd = cr.jsd_samples
+        if len(jsd) < 3:
+            ax_kde.axvline(jsd.mean(), color=color, label=cand.label)
+            continue
+        kde = sp_stats.gaussian_kde(jsd)
+        x   = np.linspace(max(0, jsd.min() * 0.5), jsd.max() * 1.3, 500)
+        lw  = 2.5 if cand.rank == 1 else 1.2
+        ls  = "-"  if cand.rank == 1 else "--"
+        ax_kde.plot(
+            x, kde(x),
+            color=color, linewidth=lw, linestyle=ls,
+            label=f"#{cand.rank} {cand.label}",
+        )
+        ax_kde.axvline(cr.mean, color=color, linewidth=0.7, linestyle=":")
+
+    ax_kde.set_xlabel("JS Divergence", fontsize=11)
+    ax_kde.set_ylabel("Density",       fontsize=11)
+    ax_kde.set_xlim(left=0)
+    ax_kde.set_title("JSD Distributions", fontsize=12)
+    ax_kde.legend(fontsize=8, loc="upper right")
+
+    # ── Right: bar chart of scores ───────────────────────────────────
+    labels = [f"#{c.rank} {c.label}" for c in shown]
+    scores = [c.score for c in shown]
+    colors_bar = [cmap[i] for i in range(n)]
+    # highlight winner
+    colors_bar[0] = "#C44E52"
+
+    bars = ax_bar.barh(
+        range(n)[::-1], scores,
+        color=colors_bar, edgecolor="white", linewidth=0.5,
+    )
+    ax_bar.set_yticks(range(n)[::-1])
+    ax_bar.set_yticklabels(labels, fontsize=8)
+    ax_bar.set_xlabel(f"{sr.criterion.capitalize()} JSD", fontsize=11)
+    ax_bar.set_title(f"Score Ranking  ({sr.criterion})", fontsize=12)
+    ax_bar.axvline(shown[0].score, color="#C44E52",
+                   linewidth=1.0, linestyle="--", alpha=0.6)
+
+    for bar, score in zip(bars, scores[::-1]):
+        ax_bar.text(
+            score + ax_bar.get_xlim()[1] * 0.01,
+            bar.get_y() + bar.get_height() / 2,
+            f"{score:.4f}", va="center", fontsize=7,
+        )
+
+    fig.suptitle(
+        title or f"Model Selection  (criterion: {sr.criterion} JSD)",
+        fontsize=13, fontweight="bold",
+    )
+    fig.tight_layout()
+
+    if save_path:
+        fig.savefig(save_path, dpi=150, bbox_inches="tight")
     return fig
 
 

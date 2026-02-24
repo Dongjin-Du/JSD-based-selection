@@ -33,15 +33,28 @@ from .core import (
     consistency,
 )
 from .divergence import jsd_distributions, jsd_samples_kde
-from .plot import plot_jsd, plot_rul_families
+from .plot import plot_jsd, plot_rul_families, plot_selection
+from .selection import (
+    ModelCandidate,
+    SelectionResult,
+    select_model,
+)
 
 __all__ = [
+    # single-model consistency
     "consistency",
     "ConsistencyResult",
+    # multi-model selection
+    "select_model",
+    "SelectionResult",
+    "ModelCandidate",
+    # divergence primitives
     "jsd_distributions",
     "jsd_samples_kde",
+    # plotting
     "plot_jsd",
     "plot_rul_families",
+    "plot_selection",
 ]
 
 __version__ = "0.1.0"

@@ -31,7 +31,7 @@ pip install jsd-consistency
 Or from source:
 
 ```bash
-git clone https://github.com/Dongjin-Du/JSD-based-selection.git
+git clone https://github.com/your-org/jsd-consistency.git
 cd jsd-consistency
 pip install -e ".[dev]"
 ```
